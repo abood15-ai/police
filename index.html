@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>جدول رتب الشرطة بكلمة سر للتعديل (متصل بقاعدة بيانات)</title>
+    <style>
+        body { font-family: 'Cairo', Arial, sans-serif; background: #000; color: #fff; padding: 40px;}
+        table { width: 98%; margin: 0 auto; border-collapse: collapse; background: #222; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px #00000030;}
+        th, td { padding: 12px 8px; text-align: center; border: 1.5px solid #5fd1e7;}
+        th { background: #1976d2; color: #fff; font-size: 1.1em;}
+        .rank-title-row td { background: #16213a; color: #ffd600; font-size: 1.1em; font-weight: bold; border-bottom: 2px solid #5fd1e7;}
+        tr:nth-child(even):not(.rank-title-row) { background: #1a1a1a;}
+        tr:nth-child(odd):not(.rank-title-row) { background: #232323;}
+        .code-cell { font-family: monospace; color: #5fd1e7; font-weight: bold;}
+        .blue-btn {
+            background-color: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 28px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 30px;
+            margin-top: 10px;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+            transition: background 0.3s, transform 0.2s;
+        }
+        .blue-btn:hover {
+            background-color: #0d47a1;
+            transform: scale(1.07);
+        }
+        td[contenteditable="true"] { background: #222 !important; outline: 2px solid #4faaff55; transition: outline 0.2s;}
+        td[contenteditable="true"]:focus { outline: 2px solid #4faaff;}
+        #password-overlay, #clear-password-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #password-box, #clear-password-box {
+            background: #232323;
+            padding: 40px 30px 30px 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 32px #00000088;
+            text-align: center;
+        }
+        #password-box input, #clear-password-box input {
+            padding: 12px;
+            font-size: 1.1em;
+            border-radius: 7px;
+            border: 1.5px solid #1976d2;
+            margin: 12px 0 18px 0;
+            background: #191919;
+            color: #fff;
+            width: 220px;
+            text-align: center;
+        }
+        #clear-password-box input {
+            border: 1.5px solid #d21919;
+        }
+        #password-box button, #clear-password-box button {
+            padding: 10px 28px;
+            font-size: 1em;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #password-box button:hover {
+            background: #12509c;
+        }
+        #clear-password-box button {
+            background: #d21919;
+        }
+        #clear-password-box button:hover {
+            background: #a10d0d;
+        }
+        #clear-password-box .cancel-btn {
+            background: #555;
+            margin-right: 10px;
+        }
+        #clear-password-box .cancel-btn:hover {
+            background: #222;
+        }
+        #wrong-pass, #wrong-clear-pass {
+            color: #f44336;
+            font-size: 1em;
+            margin-top: 8px;
+            min-height: 24px;
+        }
+        #edit-btn {
+            position: fixed;
+            top: 26px;
+            left: 26px;
+            z-index: 100;
+            background: #1976d2;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 13px 32px;
+            font-size: 19px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+            transition: background 0.3s, transform 0.2s;
+        }
+        #edit-btn:hover {
+            background: #0d47a1;
+            transform: scale(1.07);
+        }
+    </style>
+</head>
+<body>
+    <button id="edit-btn" onclick="showPasswordBox()">تفعيل التعديل</button>
+    <div id="password-overlay">
+        <div id="password-box">
+            <h2>أدخل كلمة السر للتعديل</h2>
+            <input type="password" id="password-input" placeholder="كلمة السر" autocomplete="off" autofocus>
+            <br>
+            <button onclick="checkPassword()">دخول</button>
+            <div id="wrong-pass"></div>
+        </div>
+    </div>
+    <!-- Clear-Data Password Overlay -->
+    <div id="clear-password-overlay">
+        <div id="clear-password-box">
+            <h2>أدخل كلمة السر لمسح كل البيانات</h2>
+            <input type="password" id="clear-password-input" placeholder="كلمة السر" autocomplete="off">
+            <br>
+            <button onclick="checkClearPassword()">مسح</button>
+            <button class="cancel-btn" onclick="hideClearPasswordBox()">إلغاء</button>
+            <div id="wrong-clear-pass"></div>
+        </div>
+    </div>
+    <center><h1 id="table-top">POLICE  DATA</h1></center>
+    <table id="editable-table">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Rank</th>
+                <th>POINT</th>
+                <th>Courses</th>
+                <th>Discord ID</th>
+                <th>vacation</th>
+                <th>promotion</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <!-- سيتم تعبئة الصفوف من قاعدة البيانات -->
+        </tbody>
+    </table>
+    <center>
+        <button class="blue-btn" onclick="window.location.href='SHIRIF.html'">  جدول الشرف</button> 
+        <button class="blue-btn" onclick="window.location.href='RULES.html'">   قوانين الشرطة</button> 
+        <button class="blue-btn" onclick="window.location.href='police.html'">البروتوكولات</button>
+        <button class="blue-btn" onclick="showClearPasswordBox()">مسح جميع التعديلات</button>
+    </center>
+    <script>
+    // كلمة السر المطلوبة (غيّرها كما تشاء)
+    const TABLE_PASSWORD = "12345";
+    const CLEAR_PASSWORD = "54321"; // كلمة سر لمسح البيانات
+
+    let editMode = false;
+
+    function setEditables(state) {
+        document.querySelectorAll('#table-body td[data-editable="true"]').forEach(td => {
+            td.setAttribute('contenteditable', state ? 'true' : 'false');
+        });
+        editMode = state;
+    }
+
+    function showPasswordBox() {
+        document.getElementById('password-overlay').style.display = 'flex';
+        document.getElementById('password-input').value = '';
+        document.getElementById('wrong-pass').textContent = '';
+        setTimeout(()=>{document.getElementById('password-input').focus();}, 200);
+    }
+
+    function checkPassword() {
+        const input = document.getElementById('password-input').value;
+        const msg = document.getElementById('wrong-pass');
+        if (input === TABLE_PASSWORD) {
+            setEditables(true);
+            document.getElementById('password-overlay').style.display = 'none';
+        } else {
+            msg.textContent = "كلمة السر غير صحيحة!";
+        }
+    }
+
+    document.getElementById('password-input').addEventListener('keydown', function(e){
+      if (e.key === "Enter") checkPassword();
+    });
+
+    // جلب البيانات من قاعدة البيانات وعرضها
+    function fetchTableData() {
+        fetch('get.php')
+            .then(res => res.json())
+            .then(rows => {
+                const tbody = document.getElementById('table-body');
+                tbody.innerHTML = "";
+                let lastRank = "";
+                rows.forEach(row => {
+                    // إذا تغيرت الرتبة الرئيسية نضيف صف عنوان جديد
+                    if (row.rank_title && row.rank_title !== lastRank) {
+                        lastRank = row.rank_title;
+                        const titleRow = document.createElement('tr');
+                        titleRow.classList.add('rank-title-row');
+                        const titleTd = document.createElement('td');
+                        titleTd.colSpan = 8;
+                        titleTd.textContent = row.rank_title;
+                        titleRow.appendChild(titleTd);
+                        tbody.appendChild(titleRow);
+                    }
+                    // صف عادي
+                    const tr = document.createElement('tr');
+                    // الأعمدة الرئيسية
+                    tr.innerHTML = `
+                        <td class="code-cell">${row.code}</td>
+                        <td data-editable="true">${row.name || ""}</td>
+                        <td>${row.rank}</td>
+                        <td data-editable="true">${row.point || ""}</td>
+                        <td data-editable="true">${row.courses || ""}</td>
+                        <td data-editable="true">${row.discord_id || ""}</td>
+                        <td data-editable="true">${row.vacation || ""}</td>
+                        <td data-editable="true">${row.promotion || ""}</td>
+                    `;
+                    // ضع معرف الصف في tr
+                    tr.dataset.rowId = row.id;
+                    tbody.appendChild(tr);
+                });
+                setEditables(false);
+            });
+    }
+    fetchTableData();
+
+    // عند التعديل على الخلية: حفظ تلقائي إذا في وضع التعديل
+    document.addEventListener('input', function(e) {
+        if (!editMode) return;
+        const td = e.target.closest('td[data-editable="true"]');
+        if (td && td.parentElement && td.parentElement.parentElement.id === "table-body") {
+            const tr = td.parentElement;
+            const rowId = tr.dataset.rowId;
+            // خذ كل القيم المعدلة
+            const tds = tr.querySelectorAll('td');
+            const data = {
+                id: rowId,
+                name: tds[1].textContent,
+                point: tds[3].textContent,
+                courses: tds[4].textContent,
+                discord_id: tds[5].textContent,
+                vacation: tds[6].textContent,
+                promotion: tds[7].textContent
+            };
+            // حفظ للباك اند
+            fetch('save.php', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(data)
+            }).then(res=>res.json()).then(result=>{
+                // يمكنك عرض رسالة نجاح هنا لو أردت
+            });
+        }
+    });
+
+    // كلمة سر لمسح جميع التعديلات (إعادة تعيين القاعدة)
+    function showClearPasswordBox() {
+        document.getElementById('clear-password-overlay').style.display = 'flex';
+        document.getElementById('clear-password-input').value = '';
+        document.getElementById('wrong-clear-pass').textContent = '';
+        setTimeout(()=>{document.getElementById('clear-password-input').focus();}, 200);
+    }
+    function checkClearPassword() {
+        const input = document.getElementById('clear-password-input').value;
+        const msg = document.getElementById('wrong-clear-pass');
+        if (input === CLEAR_PASSWORD) {
+            fetch('reset.php', {method:'POST'}).then(()=>{
+                document.getElementById('clear-password-overlay').style.display = 'none';
+                fetchTableData();
+            });
+        } else {
+            msg.textContent = "كلمة السر غير صحيحة!";
+        }
+    }
+    function hideClearPasswordBox() {
+        document.getElementById('clear-password-overlay').style.display = 'none';
+    }
+    document.getElementById('clear-password-input').addEventListener('keydown', function(e){
+      if (e.key === "Enter") checkClearPassword();
+    });
+    </script>
+</body>
+</html>
